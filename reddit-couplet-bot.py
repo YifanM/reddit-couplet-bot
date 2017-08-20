@@ -1,6 +1,7 @@
 import praw
 import time
 import string
+import re
 
 #use regex instead for these strings?
 
@@ -24,9 +25,9 @@ def syllables(line):
 
 def valid_syllables(line_1, line_2):
     syllables_1 = syllables(line_1)
-    if not in_range(syllables_1): return false
+    if not in_range(syllables_1): return False
     syllables_2 = syllables(line_2)
-    if not in_range(syllables_2): return false
+    if not in_range(syllables_2): return False
     return syllables_1 == syllables_2
 
 def does_rhyme(word_1, word_2):
@@ -35,27 +36,26 @@ def does_rhyme(word_1, word_2):
 def validate_line(line):
     #print (line)
     if not line: return False
-    for word in line: #combine these 4 cases together somehow
+    for word in line: #combine these 3 cases together somehow
         if all(char.lower() not in vowels and char.lower() not in consonants for char in word):
             #print(1)
-            return False
+            return []
         elif any(char.lower() not in vowels and char.lower() not in consonants and char not in punctuation for char in word):
             #print(2)
-            return False
+            return []
         elif word != str(line[-1]) and any(char in end_punctuation for char in word):
             #print(3)
-            return False
-        elif word == str(line[-1]) and any(char in connector_punctuation for char in word):
-            #print(4)
-            return False
-    return True
+            return []
+    return line
 
 def run_couplet_bot(subreddit):
     for comment in subreddit.comments(limit = 100):
-        lines = list(filter(validate_line, [line.split() for line in comment.body.split("\n\n")]))
+        lines = list(map(validate_line, [line.split() for line in re.split("\n\n\n*", comment.body)]))
         for line_1, line_2 in zip(lines, lines[1:]):
-          if does_rhyme(line_1[-1], line_2[-1]) and valid_syllables(line_1, line_2):
-            print ("@", line_1, line_2) #todo
+            if not line_1 or not line_2: continue
+            elif any(char in connector_punctuation for char in line_2[-1]): continue
+            if valid_syllables(line_1, line_2) and does_rhyme(line_1[-1], line_2[-1]):
+                print ("@", line_1, line_2) #todo
     time.sleep(60)
 
 def main():
