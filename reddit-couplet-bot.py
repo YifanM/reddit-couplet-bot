@@ -5,13 +5,11 @@ import re
 import requests
 from datetime import datetime
 
-#use regex instead for these strings?
-
-vowels = set("aeiouy")
-consonants = set(char for char in string.ascii_lowercase if char not in vowels)
-punctuation = set("\"'’;:,.?!()")
-end_punctuation = set(".?!")
-connector_punctuation = set(";:,")
+vowels = r"[aeiouy]"
+consonants = r"[b-df-hj-np-tv-xz]"
+punctuation = r"[\"\'\’\;\:\,\.\?\!\(\)]"
+end_punctuation = r"[\.\?\!]"
+connector_punctuation = r"[\;\:\,]"
 min_syllables = 8
 max_syllables = 12
 apiBaseUrl = "https://api.datamuse.com/words?rel_rhy="
@@ -54,21 +52,24 @@ def valid_syllables(line_1, line_2):
     if not in_range(syllables_2): return False
     return syllables_1 == syllables_2
 
+# after some research, rhyming appears to be much harder than counting syllables
+# it requires converting a word to its phonetics and stresses (which seems to be very hard to do)
+# so, we are retrieving rhyming data from an external database instead
 def does_rhyme(word_1, word_2):
-    # after some research, rhyming appears to be much harder than counting syllables
-    # it requires converting a word to its phonetics and stresses (which seems to be very hard to do)
-    # so, we are retrieving rhyming data from an external database instead
     response = requests.get(apiBaseUrl + remove_punctuation(word_1))
     return any(obj["word"] == remove_punctuation(word_2) for obj in response.json());
 
 def validate_line(line):
-    # if not line: return False
+    # if not line: return False <-- is it possible to receive an empty line?
     for word in line:
-        if all(char.lower() not in vowels and char.lower() not in consonants for char in word) or
-           any(char.lower() not in vowels and char.lower() not in consonants and char not in punctuation for char in word) or
-           (word != str(line[-1]) and any(char in end_punctuation for char in word)):
-
-            return []
+        print(len(word), re.split("(" + "|".join([vowels, consonants, punctuation]) + ")", word.lower()))
+        print(not re.search(vowels, word.lower()))
+        print(len(word) != len(re.split("|".join([vowels, consonants, punctuation]), word.lower())))
+        print((word != str(line[-1]) and re.search(end_punctuation, word)))
+        if (not re.search(vowels, word.lower()) or # no vowels in word
+           len(word) != len(re.split("|".join([vowels, consonants, punctuation]), word.lower())) or # there is unrecognized char, not conso/vowel/punc
+           (word != str(line[-1]) and re.search(end_punctuation, word))): #end punc appears in not the last word
+                return []
     return line
 
 def run_couplet_bot(subreddit):
@@ -92,7 +93,9 @@ def main():
     reddit = authenticate()
     subreddit = reddit.subreddit(subredditName)
     while True:
-        run_couplet_bot(subreddit)
-        time.sleep(60)
+        line = input().split()
+        print(validate_line(line))
+        #run_couplet_bot(subreddit)
+        #time.sleep(60)
 
 main()
