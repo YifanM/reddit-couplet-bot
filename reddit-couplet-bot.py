@@ -5,9 +5,9 @@ import re
 import requests
 from datetime import datetime
 
-vowels = r"[aeiouy]"
-consonants = r"[b-df-hj-np-tv-xz]"
-punctuation = r"[\"\'\’\;\:\,\.\?\!\(\)]"
+vowels = r"[aeiouyAEIOUY]"
+consonants = r"[b-df-hj-np-tv-xzB-DF-HJ-NP-TV-XZ]"
+punctuation = r"[\"\'\’\;\:\,\.\?\!\(\)\-]"
 end_punctuation = r"[\.\?\!]"
 connector_punctuation = r"[\;\:\,]"
 min_syllables = 8
@@ -30,19 +30,13 @@ def remove_punctuation(word):
 #don't count suffixes that end with -es -ed -e
 #consecutive vowels only counts as one
 def syllables(line):
-    num_syllables = 0
-    for word in line:
-        temp = 0
-        for index, char in enumerate(word):
-            if char in vowels:
-                if index != len(word) - 1 and word[index+1] in vowels:
-                    continue
-                elif index == len(word) - 1 and char == "e":
-                    continue
-                elif index == len(word) - 2 and (word.endswith("s") or word.endswith("d")):
-                    continue
-                temp += 1
-        num_syllables += max(1, temp)
+    num_syllables = len(re.findall(r"([aiouyAIOUY]+" + vowels + "*)|" + # non-e vowels followed by any number of vowels
+                                   "([eE]+" + consonants + ")(?=[a-zA-Z'-])|" + # 1 or more e followed by a consonant (including s and d) in the middle of a word
+                                   "([eE]+[b-cf-hj-np-rtv-xzB-CF-HJ-NP-RTV-XZ])\s|" + # 1 or more e followed by a consonant that is not s or d at the end of a word
+                                   "([eE]" + vowels + "+)|" + # 1 e followed by one or more vowels 
+                                   "(\s[tT][hH][eE]\s)", # special case for 'the'
+                                       " ".join(line).lower()))
+    num_syllables += max(1, num_syllables)
     return num_syllables
 
 def valid_syllables(line_1, line_2):
@@ -62,12 +56,8 @@ def does_rhyme(word_1, word_2):
 def validate_line(line):
     # if not line: return False <-- is it possible to receive an empty line?
     for word in line:
-        print(len(word), re.split("(" + "|".join([vowels, consonants, punctuation]) + ")", word.lower()))
-        print(not re.search(vowels, word.lower()))
-        print(len(word) != len(re.split("|".join([vowels, consonants, punctuation]), word.lower())))
-        print((word != str(line[-1]) and re.search(end_punctuation, word)))
         if (not re.search(vowels, word.lower()) or # no vowels in word
-           len(word) != len(re.split("|".join([vowels, consonants, punctuation]), word.lower())) or # there is unrecognized char, not conso/vowel/punc
+           len(word) != len(re.findall("|".join([vowels, consonants, punctuation]), word.lower())) or # there are unrecognized characters
            (word != str(line[-1]) and re.search(end_punctuation, word))): #end punc appears in not the last word
                 return []
     return line
@@ -76,9 +66,11 @@ def run_couplet_bot(subreddit):
     for comment in subreddit.comments(limit = 100):
         lines = list(map(validate_line, [line.split() for line in re.split("\n\n\n*", comment.body)]))
         for line_1, line_2 in zip(lines, lines[1:]):
-            if (not line_1 or not line_2) or (any(char in connector_punctuation for char in line_2[-1])):
+            if (not line_1 or not line_2) or (re.search(connector_punctuation, line_2[-1])):
+                #print(line_1, line_2)
                 continue
             if valid_syllables(line_1, line_2) and does_rhyme(line_1[-1], line_2[-1]):
+                #print(1)
                 with open("commented.txt", "a+") as comment_record:
                     if comment.id not in comment_record.read(): # check that this still works
                         try:
@@ -93,9 +85,7 @@ def main():
     reddit = authenticate()
     subreddit = reddit.subreddit(subredditName)
     while True:
-        line = input().split()
-        print(validate_line(line))
-        #run_couplet_bot(subreddit)
-        #time.sleep(60)
+        run_couplet_bot(subreddit)
+        time.sleep(60)
 
 main()
