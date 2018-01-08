@@ -80,6 +80,7 @@ def run_couplet_bot(subreddit):
                             comment_record.write(comment.id + "\n")
                         except Exception as e:
                             with open("exceptions.txt", "a+") as exceptions_log:
+                                # a known exception is rate limit exceeded; the bot account has low reddit karma and has a very strict rate limit
                                 exceptions_log.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " " + str(e) + "\n")
                 break
 
