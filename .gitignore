@@ -47,4 +47,5 @@ Temporary Items
 .apdisk
 
 praw.ini
-*.txt
+commented.txt
+exceptions.txt
