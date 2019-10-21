@@ -5,5 +5,5 @@ praw==6.0.0
 prawcore==1.0.0
 requests==2.19.1
 update-checker==0.16
-urllib3==1.23
+urllib3==1.24.2
 virtualenv==16.0.0
